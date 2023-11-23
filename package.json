@@ -1,0 +1,24 @@
+{
+  "name": "streaming-center",
+  "module": "main.ts",
+  "type": "module",
+  "scripts": {
+    "start": "bun run main.ts",
+    "dev": "bun run --watch main.ts"
+  },
+  "devDependencies": {
+    "bun-types": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.2",
+    "chatgpt": "^5.2.5",
+    "dayjs": "^1.11.10",
+    "elysia": "^0.7.29",
+    "lowdb": "^6.1.1",
+    "nanoid": "^5.0.3",
+    "sharp": "^0.32.6"
+  }
+}
