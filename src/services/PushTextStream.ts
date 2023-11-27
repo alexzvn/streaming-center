@@ -1,33 +1,127 @@
+import { ChatGPTAPI } from 'chatgpt'
 import { CommentDTO } from '~/plugins/SimpleDatabase'
 import { defineWorkerQueue } from '~/utils/WorkerQueue'
+import axios from 'axios'
+import { envOrFail } from '~/utils/env'
+import { d_id } from '~/plugins/RequestClient'
 
 interface WorkerJob {
   comment: CommentDTO
+  state?: Partial<{
+    generated: string
+    audio_url: string
+    ready: true
+  }>
   retries?: number
 }
 
-const handler = async ({ comment, retries = 0 }: WorkerJob) => {
+const fpt = axios.create({
+  baseURL: 'https://api.fpt.ai',
+  headers: {
+    'api-key': envOrFail('FPT_AI_KEY'),
+    voice: 'banmai',
+    format: 'mp3',
+  }
+})
+
+interface FPTResponse {
+  async: string
+  error: string
+  request_id: string
+  message: string
+}
+
+const chatgpt = new ChatGPTAPI({
+  apiKey: envOrFail('OPENAI_KEY'),
+  completionParams: {
+    model: 'gpt-4'
+  }
+})
+
+const handler = async (job: WorkerJob) => {
   const { db } = global.state
 
-  if (retries > 3) {
+  job.retries ??= 0
+  job.state ??= {}
+
+  if (job.retries > 3) {
     return // TODO: report error
   }
 
-  const stream = db.data.streams.find(s => s.id === comment.stream_id)
+  const stream = db.data.streams.find(s => s.id === job.comment.stream_id)
 
   if (!stream) {
-    db.data.comments = db.data.comments.filter(c => c.id !== comment.id)
+    db.data.comments = db.data.comments.filter(c => c.id !== job.comment.id)
     return db.write()
   }
 
-  // TODO: generate response text via ChatGPT
-  // and convert to audio via TTS
-  // then send to stream
+
+  /**
+   * Generate text from comment
+   */
+  if (!job.state.generated) {
+    const message = `${job.comment.sender}: ${job.comment.message}`
+    const generated = await chatgpt.sendMessage(message, {
+      systemMessage: stream.prompt
+    })
+
+    job.state.generated = generated.text
+    job.retries = 0
+  }
+
+  /**
+   * Convert text to audio
+   */
+  if (! job.state.audio_url) {
+    const { data } = await fpt.post<FPTResponse>('/hmi/tts/v5', job.state.generated)
+
+    if (data.error) {
+      throw new Error(data.message)
+    }
+
+    job.state.audio_url = data.async
+    job.retries = 0
+  }
+
+  /**
+   * Check if audio is ready
+   */
+  job.state.ready ??= await new Promise<true>((resolve, reject) => {
+    const checker = setInterval(() => {
+      let finished = false
+      const controller = new AbortController()
+
+      fetch(job.state!.audio_url!, { signal: controller.signal })
+        .then(res => res.ok && [resolve(true), clearInterval(checker)])
+        .catch(() => undefined) // ignore error and retry
+        .finally(() => finished = true)
+
+      setTimeout(() => !finished && controller.abort(), 1_000)
+    }, 500)
+
+    setTimeout(() => {
+      clearInterval(checker)
+      reject(new Error(`Timeout waiting for audio ${job.state!.audio_url}`))
+    }, 10_000)
+  })
+
+  /**
+   * Push audio to the stream
+   */
+  await d_id.post(`talks/streams/${stream.stream_id}`, {
+    script: {
+      type: 'audio',
+      audio_url: job.state.audio_url,
+    },
+    driver_url: 'bank://lively/',
+    config: { stitch: true },
+    session_id: stream.session_id,
+  })
 
   stream.updated_at = Date.now()
 
   db.data.streams = db.data.streams.map(s => s.id === stream.id ? stream : s)
-  db.data.comments = db.data.comments.filter(c => c.id !== comment.id)
+  db.data.comments = db.data.comments.filter(c => c.id !== job.comment.id)
   return db.write()
 }
 
@@ -52,7 +146,7 @@ export const createHandlerQueue = async (stream_id: string, concurrent = 5) => {
   const queue = defineWorkerQueue(handler, {
     onError: (error, data) => {
       console.error(error)
-      queue!.prepend({ comment: data.comment, retries: (data.retries ?? 0) + 1 })
+      queue!.prepend({ ...data, retries: (data.retries ?? 0) + 1 })
     },
     concurrent
   })

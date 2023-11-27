@@ -3,7 +3,8 @@ import { t } from 'elysia'
 import { nanoid } from 'nanoid'
 import sharp from 'sharp'
 import { DStreamData, d_id } from '~/plugins/RequestClient'
-import { asset } from '~/utils/misc'
+import { createHandlerQueue, destroyHandlerQueue } from '~/services/PushTextStream'
+import { asset, retries } from '~/utils/misc'
 
 
 const { app } = global
@@ -38,16 +39,19 @@ app.post('/api/stream/create', async ({ body, db, set }) => {
 
   await sharp(await body.avatar.arrayBuffer()).png().toFile(`./public/upload/${id}.png`)
 
-  const data = await d_id.post<DStreamData>('/talks/streams', {
-    source_url: asset(`/upload/${id}.png`),
-  })
-  .then((res) => res.data)
-  .catch((e: AxiosError) => {
+  const data = await retries(async () => {
+    return d_id.post<DStreamData>('/talks/streams', {
+      source_url: asset(`/upload/${id}.png`),
+    })
+    .then((res) => res.data)
+  }).catch((e: AxiosError) => {
     set.status = e.status
     error = e.response?.data
   })
 
   if (!data || error) return error
+
+  createHandlerQueue(id)
 
   db.data.streams.push({
     id: id,
@@ -115,8 +119,9 @@ app.post('/api/stream/:id/terminate', ({ params, db, set }) => {
   db.data.streams.splice(index, 1)
   db.write()
 
-  // maybe delete the uploaded file as well
+  destroyHandlerQueue(id)
 
+  // TODO: maybe delete the uploaded file as well
 
   return d_id.delete(`/talks/streams/talks/streams/${stream.stream_id}`, {
     data: { session_id: stream.session_id }

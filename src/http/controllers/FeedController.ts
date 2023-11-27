@@ -1,6 +1,7 @@
 import { t } from 'elysia'
 import { nanoid } from 'nanoid'
 import { CommentDTO } from '~/plugins/SimpleDatabase'
+import { queues } from '~/services/PushTextStream'
 
 const { app } = global
 
@@ -42,6 +43,8 @@ app.post('/api/feed/:id/comment', ({ body, params, db, set }) => {
 
   db.data.comments.push(comment)
   db.write()
+
+  queues.get(stream.id)?.push({ comment })
 
   return comment
 }, validate.comment)
