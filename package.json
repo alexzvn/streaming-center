@@ -2,6 +2,7 @@
   "name": "streaming-center",
   "module": "main.ts",
   "type": "module",
+  "license": "UNLICENSED",
   "scripts": {
     "start": "bun run main.ts",
     "dev": "bun run --watch main.ts"
@@ -18,7 +19,6 @@
     "dayjs": "^1.11.10",
     "elysia": "^0.7.29",
     "lowdb": "^6.1.1",
-    "nanoid": "^5.0.3",
-    "sharp": "^0.32.6"
+    "nanoid": "^5.0.3"
   }
 }

@@ -1,7 +1,7 @@
 import { AxiosError } from 'axios'
 import { t } from 'elysia'
+import { createWriteStream } from 'fs'
 import { nanoid } from 'nanoid'
-import sharp from 'sharp'
 import { DStreamData, d_id } from '~/plugins/RequestClient'
 import { createHandlerQueue, destroyHandlerQueue } from '~/services/PushTextStream'
 import { asset, retries } from '~/utils/misc'
@@ -37,7 +37,9 @@ app.post('/api/stream/create', async ({ body, db, set }) => {
   const id = nanoid()
   let error: unknown
 
-  await sharp(await body.avatar.arrayBuffer()).png().toFile(`./public/upload/${id}.png`)
+  const extension = body.avatar.name.split('.').pop() || 'png'
+  createWriteStream(`./public/upload/${id}.${extension}`)
+    .end(Buffer.from(await body.avatar.arrayBuffer()))
 
   const data = await retries(async () => {
     return d_id.post<DStreamData>('/talks/streams', {
@@ -58,7 +60,7 @@ app.post('/api/stream/create', async ({ body, db, set }) => {
     session_id: data.session_id,
     stream_id: data.id,
     prompt: body.prompt,
-    avatar: asset(`/upload/${id}.png`),
+    avatar: asset(`/upload/${id}.${extension}`),
     updated_at: Date.now()
   })
 
