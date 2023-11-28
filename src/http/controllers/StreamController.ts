@@ -33,7 +33,56 @@ const validate = {
   }
 }
 
-app.get('/', () => 'hi')
+const createIdleAnimation = async (image: string) => {
+  interface AnimationData {
+    id: string
+    source_url: string
+    result_url?: string
+    error?: {
+      description: string
+      kind: string
+    }
+  }
+
+  interface AnimationRequest {
+    id: string
+    status: 'created',
+    created_at: string
+  }
+
+  console.log('beginning animation request')
+
+
+  const requesting = await d_id.post<AnimationRequest>('/animations', {
+    source_url: image,
+    driver_url: 'bank://nostalgia/'
+  })
+  .catch(() => undefined)
+
+  if (!requesting) {
+    return undefined
+  }
+
+  const { data: animation } = await d_id.get<AnimationData>(`/animations/${requesting.data.id}`)
+
+  if (animation.error) {
+    return undefined
+  }
+
+  let times = 5
+
+  while (times --> 0) {
+    await new Promise((resolve) => setTimeout(resolve, 2500))
+    const { data: animation } = await d_id.get<AnimationData>(`/animations/${requesting.data.id}`)
+
+    if (animation.result_url) {
+      return animation.result_url
+    }
+  }
+
+  // To bad, animation request generate timed out
+  return undefined
+}
 
 app.post('/api/stream/create', async ({ body, db, set }) => {
   const id = nanoid()
@@ -44,6 +93,8 @@ app.post('/api/stream/create', async ({ body, db, set }) => {
 
   createWriteStream(filepath)
     .end(Buffer.from(await body.avatar.arrayBuffer()))
+
+  const animation = await createIdleAnimation(asset(filepath))
 
   const data = await retries(async () => {
     return d_id.post<DStreamData>('/talks/streams', {
@@ -62,7 +113,7 @@ app.post('/api/stream/create', async ({ body, db, set }) => {
     session_id: data.session_id,
     stream_id: data.id,
     prompt: body.prompt,
-    avatar: asset(`/upload/${id}.${extension}`),
+    avatar: asset(filepath),
     updated_at: Date.now()
   }
 
@@ -71,7 +122,7 @@ app.post('/api/stream/create', async ({ body, db, set }) => {
   db.data.streams.push(stream)
   db.write()
 
-  return { stream, wrtc: data}
+  return { stream, wrtc: data, animation }
 }, validate.create)
 
 
