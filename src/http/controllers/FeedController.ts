@@ -1,5 +1,6 @@
 import { t } from 'elysia'
 import { nanoid } from 'nanoid'
+import { d_id } from '~/plugins/RequestClient'
 import { CommentDTO } from '~/plugins/SimpleDatabase'
 import { queues } from '~/services/PushTextStream'
 
@@ -11,6 +12,11 @@ const validate = {
       user: t.String({ maxLength: 20 }),
       content: t.String({ maxLength: 500 }),
     }),
+  },
+  audio: {
+    body: t.Object({
+      audio: t.String()
+    })
   }
 }
 
@@ -49,3 +55,24 @@ app.post('/api/feed/:id/comment', ({ body, params, db, set }) => {
   return comment
 }, validate.comment)
 
+app.post('/api/feed/:id/audio', async ({ body, params, db, set }) => {
+  const stream = db.data.streams.find((stream) => stream.id === params.id)
+
+  if (!stream) {
+    set.status = 'Not Found'
+    return { error: 'Stream not found' }
+  }
+
+  const response = await d_id.post(`talks/streams/${stream.stream_id}`, {
+    script: {
+      type: 'audio',
+      audio_url: body.audio,
+    },
+    driver_url: 'bank://lively/',
+    config: { stitch: true },
+    session_id: stream.session_id,
+  })
+
+
+  return response.data
+}, validate.audio)

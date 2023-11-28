@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia'
+import { staticPlugin } from '@elysiajs/static'
 import { env } from '~/utils/env'
-import RegisterHandler from '~/plugins/RegisterHandler'
 import { create } from '~/plugins/SimpleDatabase'
 
 const port = +env('APP_PORT', 3000)!
@@ -11,9 +11,11 @@ const start = async () => {
   (global as any).app = application
   global.state = { db: await create() }
 
+  await import('~/plugins/RegisterHandler')
+
   return application
     .decorate('db', global.state.db)
-    .on('start', RegisterHandler)
+    .use(staticPlugin({ assets: 'public' }))
     .listen(port)
 }
 

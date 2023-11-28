@@ -6,7 +6,6 @@ import { DStreamData, d_id } from '~/plugins/RequestClient'
 import { createHandlerQueue, destroyHandlerQueue } from '~/services/PushTextStream'
 import { asset, retries } from '~/utils/misc'
 
-
 const { app } = global
 
 const validate = {
@@ -22,6 +21,7 @@ const validate = {
       candidate: t.String(),
       sdpMid: t.String(),
       sdpMLineIndex: t.Number(),
+      session_id: t.Optional(t.String()),
     })
   },
 
@@ -33,17 +33,21 @@ const validate = {
   }
 }
 
+app.get('/', () => 'hi')
+
 app.post('/api/stream/create', async ({ body, db, set }) => {
   const id = nanoid()
   let error: unknown
 
   const extension = body.avatar.name.split('.').pop() || 'png'
-  createWriteStream(`./public/upload/${id}.${extension}`)
+  const filepath = `./public/upload/${id}.${extension}`
+
+  createWriteStream(filepath)
     .end(Buffer.from(await body.avatar.arrayBuffer()))
 
   const data = await retries(async () => {
     return d_id.post<DStreamData>('/talks/streams', {
-      source_url: asset(`/upload/${id}.png`),
+      source_url: asset(filepath),
     })
     .then((res) => res.data)
   }).catch((e: AxiosError) => {
@@ -53,20 +57,21 @@ app.post('/api/stream/create', async ({ body, db, set }) => {
 
   if (!data || error) return error
 
-  createHandlerQueue(id)
-
-  db.data.streams.push({
+  const stream = {
     id: id,
     session_id: data.session_id,
     stream_id: data.id,
     prompt: body.prompt,
     avatar: asset(`/upload/${id}.${extension}`),
     updated_at: Date.now()
-  })
+  }
 
+  createHandlerQueue(id)
+
+  db.data.streams.push(stream)
   db.write()
 
-  return data
+  return { stream, wrtc: data}
 }, validate.create)
 
 
@@ -78,9 +83,12 @@ app.post('/api/stream/:id/exchange/ice', ({ params, body, db, set }) => {
     return { message: 'Stream not found' }
   }
 
-  return d_id.post(`/talks/streams/${stream.stream_id}/exchange/ice`, {
-    ...body, session_id: stream.session_id
-  })
+  console.log({ body, session_id: stream.session_id });
+
+  return d_id.post(`/talks/streams/${stream.stream_id}/ice`, {
+      ...body,
+      session_id: stream.session_id
+    })
     .then((res) => res.data)
     .catch((e: AxiosError) => {
       set.status = e.status
@@ -105,7 +113,7 @@ app.post('/api/stream/:id/exchange/sdp', ({ params, body, db, set }) => {
       set.status = e.status
       return e.response?.data
     })
-})
+}, validate.sdp)
 
 app.post('/api/stream/:id/terminate', ({ params, db, set }) => {
   const id = params.id
