@@ -83,8 +83,6 @@ app.post('/api/stream/:id/exchange/ice', ({ params, body, db, set }) => {
     return { message: 'Stream not found' }
   }
 
-  console.log({ body, session_id: stream.session_id });
-
   return d_id.post(`/talks/streams/${stream.stream_id}/ice`, {
       ...body,
       session_id: stream.session_id
