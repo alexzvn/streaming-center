@@ -15,6 +15,11 @@ export interface StreamDTO {
   session_id: string,
   prompt: string,
 
+  tts: {
+    voice: string,
+    speed: number,
+  }
+
   /**
    * Path to the avatar file
    */

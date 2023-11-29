@@ -14,7 +14,7 @@ const validate = {
       prompt: t.String({ maxLength: 1000 }),
       avatar: t.File({type: ['image'], maxSize: '10m' }),
       voice: t.Optional(t.String({ maxLength: 20 })),
-      speed: t.Optional(t.Number({ min: -3, max: 3 })),
+      speed: t.Optional(t.String()),
     })
   },
 
@@ -125,7 +125,7 @@ app.post('/api/stream/create', async ({ body, db, set }) => {
     prompt: body.prompt,
     tts: {
       voice: body.voice || 'banmai',
-      speed: body.speed || 0
+      speed: body.speed ? +body.speed || 0 : 0
     },
     avatar: asset(filepath),
     updated_at: Date.now()
