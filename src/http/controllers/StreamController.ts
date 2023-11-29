@@ -12,7 +12,17 @@ const validate = {
   create: {
     body: t.Object({
       prompt: t.String({ maxLength: 1000 }),
-      avatar: t.File({type: ['image'], maxSize: '10m' })
+      avatar: t.File({type: ['image'], maxSize: '10m' }),
+      voice: t.Optional(t.String({ maxLength: 20 })),
+      speed: t.Optional(t.Number({ min: -3, max: 3 })),
+    })
+  },
+
+  update: {
+    body: t.Object({
+      prompt: t.Optional(t.String({ maxLength: 1000 })),
+      voice: t.Optional(t.String({ maxLength: 20 })),
+      speed: t.Optional(t.Number({ min: -3, max: 3 })),
     })
   },
 
@@ -113,6 +123,10 @@ app.post('/api/stream/create', async ({ body, db, set }) => {
     session_id: data.session_id,
     stream_id: data.id,
     prompt: body.prompt,
+    tts: {
+      voice: body.voice || 'banmai',
+      speed: body.speed || 0
+    },
     avatar: asset(filepath),
     updated_at: Date.now()
   }
@@ -124,6 +138,29 @@ app.post('/api/stream/create', async ({ body, db, set }) => {
 
   return { stream, wrtc: data, animation }
 }, validate.create)
+
+app.patch('/api/stream/:id', ({ params, body, db, set }) => {
+  const id = params.id
+
+  const stream = db.data.streams.find((stream) => stream.id === id)
+
+  if (!stream) {
+    set.status = 'Not Found'
+    return { message: 'Stream not found' }
+  }
+
+  if (body.prompt) stream.prompt = body.prompt
+  if (body.voice) stream.tts.voice = body.voice
+  if (body.speed) stream.tts.speed = body.speed
+
+  stream.updated_at = Date.now()
+
+  db.data.streams.splice(db.data.streams.findIndex((stream) => stream.id === id), 1, stream)
+  db.write()
+
+  return stream
+
+}, validate.update)
 
 
 app.post('/api/stream/:id/exchange/ice', ({ params, body, db, set }) => {

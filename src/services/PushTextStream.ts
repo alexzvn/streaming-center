@@ -73,7 +73,12 @@ const handler = async (job: WorkerJob) => {
    * Convert text to audio
    */
   if (! job.state.audio_url) {
-    const { data } = await fpt.post<FPTResponse>('/hmi/tts/v5', job.state.generated)
+    const { data } = await fpt.post<FPTResponse>('/hmi/tts/v5', job.state.generated, {
+      headers: {
+        voice: stream.tts.voice || 'banmai',
+        speed: stream.tts.speed || 0
+      }
+    })
 
     if (data.error) {
       throw new Error(data.message)
