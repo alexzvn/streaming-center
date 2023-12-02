@@ -19,6 +19,5 @@ FROM install AS prerelease
 COPY --from=install /temp/prod/node_modules node_modules
 COPY . .
 
-USER bun
-EXPOSE 3000/tcp
+EXPOSE 3000
 ENTRYPOINT [ "bun", "run", "main.ts" ]
