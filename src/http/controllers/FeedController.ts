@@ -10,8 +10,8 @@ const { app } = global
 const validate = {
   comment: {
     body: t.Object({
-      user: t.String({ maxLength: 20 }),
-      content: t.String({ maxLength: 500 }),
+      user: t.String({ maxLength: 200 }),
+      content: t.String({ maxLength: 5000 }),
     }),
   },
   audio: {
