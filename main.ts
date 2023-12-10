@@ -14,6 +14,7 @@ const start = async () => {
   await import('~/plugins/RegisterHandler')
 
   return application
+    .get('/', () => 'hello')
     .decorate('db', global.state.db)
     .use(staticPlugin({ assets: 'public' }))
     .listen(port)
