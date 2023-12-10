@@ -56,6 +56,34 @@ app.post('/api/feed/:id/comment', ({ body, params, db, set }) => {
   return comment
 }, validate.comment)
 
+app.post('/api/feed/comment/passthrough', ({ body, db, set }) => {
+  const stream = db.data.streams.sort((a, b) => b.updated_at - a.updated_at)[0]
+
+  if (!stream) {
+    set.status = 'Not Found'
+    return { error: 'Stream not found' }
+  }
+
+  const group = groups.get(stream.id)
+
+  if (! group || group.size < 1) {
+    return 'No one is listening to this stream'
+  }
+
+  for (const id of group) {
+    const ws = holder.get(id)
+
+    if (!ws) continue
+
+    ws.send(JSON.stringify({
+      user: body.user,
+      message: body.content
+    }))
+
+    console.log('passthrough', id, stream.id, body)
+  }
+}, validate.comment)
+
 app.post('/api/feed/:id/comment/passthrough', ({ body, params, db, set }) => {
   const stream = db.data.streams.find((stream) => stream.id === params.id)
 
