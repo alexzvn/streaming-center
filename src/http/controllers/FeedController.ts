@@ -3,6 +3,7 @@ import { nanoid } from 'nanoid'
 import { d_id } from '~/plugins/RequestClient'
 import { CommentDTO } from '~/plugins/SimpleDatabase'
 import { queues } from '~/services/PushTextStream'
+import { groups, holder } from '../sockets/comment'
 
 const { app } = global
 
@@ -53,6 +54,35 @@ app.post('/api/feed/:id/comment', ({ body, params, db, set }) => {
   queues.get(stream.id)?.push({ comment })
 
   return comment
+}, validate.comment)
+
+app.post('/api/feed/:id/comment/passthrough', ({ body, params, db, set }) => {
+  const stream = db.data.streams.find((stream) => stream.id === params.id)
+
+  if (!stream) {
+    set.status = 'Not Found'
+    return { error: 'Stream not found' }
+  }
+
+  const group = groups.get(params.id)
+
+  if (! group || group.size < 1) {
+    return 'No one is listening to this stream'
+  }
+
+  for (const id of group) {
+    const ws = holder.get(id)
+
+    if (!ws) continue
+
+    ws.send(JSON.stringify({
+      user: body.user,
+      message: body.content
+    }))
+
+    console.log('passthrough', id, params.id, body)
+  }
+
 }, validate.comment)
 
 app.post('/api/feed/:id/audio', async ({ body, params, db, set }) => {
