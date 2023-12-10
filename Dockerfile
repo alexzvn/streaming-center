@@ -18,6 +18,7 @@ RUN cd /temp/prod && bun install
 FROM install AS prerelease
 COPY --from=install /temp/prod/node_modules node_modules
 COPY . .
+RUN mkdir -p storage
 
 EXPOSE 3000
 ENTRYPOINT [ "bun", "run", "main.ts" ]
