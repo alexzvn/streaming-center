@@ -11,6 +11,7 @@ interface WorkerJob {
     generated: string
     audio_url: string
     ready: true
+    completed: true
   }>
   retries?: number
 }
@@ -41,6 +42,10 @@ const chatgpt = new ChatGPTAPI({
 const handler = async (job: WorkerJob) => {
   const { db } = global.state
 
+  if (job.state?.completed) {
+    return
+  }
+
   job.retries ??= 0
   job.state ??= {}
 
@@ -52,7 +57,7 @@ const handler = async (job: WorkerJob) => {
 
   if (!stream) {
     db.data.comments = db.data.comments.filter(c => c.id !== job.comment.id)
-    return db.write()
+    return db.write().catch(() => undefined)
   }
 
 
@@ -99,7 +104,11 @@ const handler = async (job: WorkerJob) => {
       fetch(job.state!.audio_url!, { signal: controller.signal })
         .then(res => res.ok && [resolve(true), clearInterval(checker)])
         .catch(() => undefined) // ignore error and retry
-        .finally(() => finished = true)
+        .finally(() => {
+          finished = true
+          job.state ??= {}
+          job.state.completed = true
+        })
 
       setTimeout(() => !finished && controller.abort(), 1_000)
     }, 500)
