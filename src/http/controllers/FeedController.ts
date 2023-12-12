@@ -149,8 +149,8 @@ app.post('/api/feed/:id/audio/file', async ({ body, params }) => {
   const id = nanoid()
   const ext = body.audio.name.split('.').pop()!
 
-  const storage = `./public/uploads/${id}.${ext}`
-  const url = asset(`/uploads/${id}.${ext}`)
+  const storage = `./public/upload/${id}.${ext}`
+  const url = asset(`/upload/${id}.${ext}`)
   const file = createWriteStream(storage)
 
   for await (const data of body.audio.stream()) {
