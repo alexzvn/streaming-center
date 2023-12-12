@@ -7,6 +7,7 @@ import { groups, holder } from '../sockets/comment'
 import { createWriteStream } from 'fs'
 import { asset } from '~/utils/misc'
 import { worker } from '~/services/PushAudioStream'
+import { unlink } from 'fs/promises'
 
 const { app } = global
 
@@ -153,11 +154,27 @@ app.post('/api/feed/:id/audio/file', async ({ body, params, db }) => {
   console.log(db.data.streams.find(s => s.id === params.id))
 
   const storage = `./public/upload/${id}.${ext}`
-  const url = asset(`/upload/${id}.${ext}`)
+  const url = asset(`/public/upload/${id}.${ext}`)
 
   createWriteStream(storage).end(Buffer.from(await body.audio.arrayBuffer()))
 
-  worker.push({ id: params.id, storage_path: storage, url })
+  const stream = db.data.streams.find(s => s.id === params.id)
+
+  if (!stream) {
+    return `Stream ${params.id} not found`
+  }
+
+  await d_id.post(`talks/streams/${stream.stream_id}`, {
+    script: {
+      type: 'audio',
+      audio_url: url,
+    },
+    driver_url: 'bank://lively/',
+    config: { stitch: true },
+    session_id: stream.session_id,
+  })
+  .then(data => console.log(data.data))
+  .finally(() => unlink(storage))
 
   return { url }
 }, validate.audioFile)
