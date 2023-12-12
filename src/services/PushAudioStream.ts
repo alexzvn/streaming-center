@@ -36,5 +36,7 @@ export const worker = defineWorkerQueue(async (data: WorkerJob) => {
     driver_url: 'bank://lively/',
     config: { stitch: true },
     session_id: stream.session_id,
-  }).finally(() => unlink(data.storage_path))
+  })
+  .then(data => console.log(data.data))
+  .finally(() => unlink(data.storage_path))
 }, { concurrent: 5 })
