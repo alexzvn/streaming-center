@@ -154,13 +154,9 @@ app.post('/api/feed/:id/audio/file', async ({ body, params, db }) => {
 
   const storage = `./public/upload/${id}.${ext}`
   const url = asset(`/upload/${id}.${ext}`)
-  const file = createWriteStream(storage)
 
-  for await (const data of body.audio.stream()) {
-    file.write(data)
-  }
+  createWriteStream(storage).end(Buffer.from(await body.audio.arrayBuffer()))
 
-  file.end()
   worker.push({ id: params.id, storage_path: storage, url })
 
   return { url }
