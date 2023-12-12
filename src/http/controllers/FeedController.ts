@@ -172,7 +172,7 @@ app.post('/api/feed/:id/audio/file', async ({ body, params, db }) => {
   })
   .then(data => console.log(data.data))
   .catch((error: AxiosError) => console.log(error.response?.data))
-  .finally(() => unlink(storage))
+  // .finally(() => unlink(storage))
 
   return { url }
 }, validate.audioFile)
