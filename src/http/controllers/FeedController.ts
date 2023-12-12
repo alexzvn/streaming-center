@@ -144,10 +144,13 @@ app.post('/api/feed/:id/audio', async ({ body, params, db, set }) => {
 }, validate.audio)
 
 
-app.post('/api/feed/:id/audio/file', async ({ body, params }) => {
+app.post('/api/feed/:id/audio/file', async ({ body, params, db }) => {
+  console.log('audio file', body.audio.name)
 
   const id = nanoid()
   const ext = body.audio.name.split('.').pop()!
+
+  console.log(db.data.streams.find(s => s.id === params.id))
 
   const storage = `./public/upload/${id}.${ext}`
   const url = asset(`/upload/${id}.${ext}`)

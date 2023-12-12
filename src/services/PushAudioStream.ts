@@ -25,7 +25,7 @@ export const worker = defineWorkerQueue(async (data: WorkerJob) => {
   const stream = db.data.streams.find(s => s.id === data.id)
 
   if (!stream) {
-    return
+    return console.error(`Stream ${data.id} not found`)
   }
 
   await d_id.post(`talks/streams/${stream.stream_id}`, {
@@ -38,5 +38,5 @@ export const worker = defineWorkerQueue(async (data: WorkerJob) => {
     session_id: stream.session_id,
   })
   .then(data => console.log(data.data))
-  .finally(() => unlink(data.storage_path))
+  // .finally(() => unlink(data.storage_path))
 }, { concurrent: 5 })
