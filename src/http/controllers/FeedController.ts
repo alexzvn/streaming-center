@@ -6,7 +6,6 @@ import { queues } from '~/services/PushTextStream'
 import { groups, holder } from '../sockets/comment'
 import { createWriteStream } from 'fs'
 import { asset } from '~/utils/misc'
-import { worker } from '~/services/PushAudioStream'
 import { unlink } from 'fs/promises'
 import { AxiosError } from 'axios'
 
