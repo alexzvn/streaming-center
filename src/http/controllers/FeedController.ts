@@ -4,6 +4,9 @@ import { d_id } from '~/plugins/RequestClient'
 import { CommentDTO } from '~/plugins/SimpleDatabase'
 import { queues } from '~/services/PushTextStream'
 import { groups, holder } from '../sockets/comment'
+import { createWriteStream } from 'fs'
+import { asset } from '~/utils/misc'
+import { worker } from '~/services/PushAudioStream'
 
 const { app } = global
 
@@ -17,6 +20,12 @@ const validate = {
   audio: {
     body: t.Object({
       audio: t.String()
+    })
+  },
+
+  audioFile: {
+    body: t.Object({
+      audio: t.File({ type: ['audio'], maxSize: '200m' })
     })
   }
 }
@@ -131,6 +140,25 @@ app.post('/api/feed/:id/audio', async ({ body, params, db, set }) => {
     session_id: stream.session_id,
   })
 
-
   return response.data
 }, validate.audio)
+
+
+app.post('/api/feed/:id/audio/file', async ({ body, params }) => {
+
+  const id = nanoid()
+  const ext = body.audio.name.split('.').pop()!
+
+  const storage = `./public/uploads/${id}.${ext}`
+  const url = asset(`/uploads/${id}.${ext}`)
+  const file = createWriteStream(storage)
+
+  for await (const data of body.audio.stream()) {
+    file.write(data)
+  }
+
+  file.end()
+  worker.push({ id: params.id, storage_path: storage, url })
+
+  return { url }
+}, validate.audioFile)
