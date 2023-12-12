@@ -8,6 +8,7 @@ import { createWriteStream } from 'fs'
 import { asset } from '~/utils/misc'
 import { worker } from '~/services/PushAudioStream'
 import { unlink } from 'fs/promises'
+import { AxiosError } from 'axios'
 
 const { app } = global
 
@@ -146,12 +147,8 @@ app.post('/api/feed/:id/audio', async ({ body, params, db, set }) => {
 
 
 app.post('/api/feed/:id/audio/file', async ({ body, params, db }) => {
-  console.log('audio file', body.audio.name)
-
   const id = nanoid()
   const ext = body.audio.name.split('.').pop()!
-
-  console.log(db.data.streams.find(s => s.id === params.id))
 
   const storage = `./public/upload/${id}.${ext}`
   const url = asset(`/public/upload/${id}.${ext}`)
@@ -174,6 +171,7 @@ app.post('/api/feed/:id/audio/file', async ({ body, params, db }) => {
     session_id: stream.session_id,
   })
   .then(data => console.log(data.data))
+  .catch((error: AxiosError) => console.log(error.response?.data))
   .finally(() => unlink(storage))
 
   return { url }
