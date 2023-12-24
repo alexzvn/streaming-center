@@ -8,8 +8,15 @@ import { createWriteStream } from 'fs'
 import { asset } from '~/utils/misc'
 import { unlink } from 'fs/promises'
 import { AxiosError } from 'axios'
+import mitt from 'mitt'
 
 const { app } = global
+
+type Event = {
+  message: { user: string, content: string }
+}
+
+export const emitter = mitt<Event>()
 
 const validate = {
   comment: {
@@ -74,6 +81,8 @@ app.post('/api/feed/comment/passthrough', ({ body, db, set }) => {
     return { error: 'Stream not found' }
   }
 
+  emitter.emit('message', body)
+
   const group = groups.get(stream.id)
 
   if (! group || group.size < 1) {
@@ -85,10 +94,7 @@ app.post('/api/feed/comment/passthrough', ({ body, db, set }) => {
 
     if (!ws) continue
 
-    ws.send(JSON.stringify({
-      user: body.user,
-      message: body.content
-    }))
+    ws.send(JSON.stringify(body))
 
     console.log('passthrough', id, stream.id, body)
   }
