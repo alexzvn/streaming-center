@@ -1,5 +1,6 @@
 import { Elysia } from 'elysia'
 import { staticPlugin } from '@elysiajs/static'
+import { cors } from '@elysiajs/cors'
 import { env } from '~/utils/env'
 import { create } from '~/plugins/SimpleDatabase'
 
@@ -16,6 +17,7 @@ const start = async () => {
   return application
     .get('/', () => 'hello')
     .decorate('db', global.state.db)
+    .use(cors())
     .use(staticPlugin({ assets: 'public' }))
     .listen(port)
 }
