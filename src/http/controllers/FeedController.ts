@@ -74,14 +74,14 @@ app.post('/api/feed/:id/comment', ({ body, params, db, set }) => {
 }, validate.comment)
 
 app.post('/api/feed/comment/passthrough', ({ body, db, set }) => {
+  emitter.emit('message', body)
+
   const stream = db.data.streams.sort((a, b) => b.updated_at - a.updated_at)[0]
 
   if (!stream) {
     set.status = 'Not Found'
     return { error: 'Stream not found' }
   }
-
-  emitter.emit('message', body)
 
   const group = groups.get(stream.id)
 
