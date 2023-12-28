@@ -14,8 +14,6 @@ const start = async () => {
 
   await import('~/plugins/RegisterHandler')
 
-  application.use(cors())
-
   return application
     .get('/', () => 'hello')
     .decorate('db', global.state.db)
